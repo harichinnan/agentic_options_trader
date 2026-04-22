@@ -1,0 +1,40 @@
+name: IronCondor-SPY
+description: >
+  Non-directional iron condor on SPY. 0.15 delta short strikes on both sides,
+  $10 wings, 45 DTE, close at 25% profit. Defensive roll if either short strike
+  gets tested intraday.
+
+entry:
+  strategy: IronCondor
+  delta_target: 0.15
+  delta_tolerance: 0.05
+  dte_target: 45
+  dte_tolerance: 5
+  min_iv_rank: 40
+  wing_width: 10.0
+  symbols:
+    - SPY
+  skip_if_earnings_within_days: 7
+  skip_if_fomc_within_days: 2
+  skip_if_cpi_within_days: 2
+
+sizing:
+  mode: fixed_contracts
+  contracts: 1
+
+rolls:
+  - trigger: short_strike_tested
+    target_dte: 45
+    target_delta: 0.15
+
+exits:
+  - profit_target_pct: 0.25
+  - dte_close: 21
+  - stop_loss_multiplier: 2.0
+
+risk:
+  max_concurrent_positions: 4
+  max_capital_per_symbol_pct: 0.40
+  max_portfolio_delta: 50
+  max_portfolio_vega: 200
+  initial_capital: 50000

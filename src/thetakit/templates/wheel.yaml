@@ -1,0 +1,41 @@
+name: Wheel
+description: >
+  The classic Wheel: sell cash-secured puts at 0.30 delta, 45 DTE. Roll at 21 DTE
+  or on short-strike-tested. Close at 50% profit. If assigned, the covered-call
+  side of the wheel is a separate strategy composed on top (see covered_call_basic).
+
+entry:
+  strategy: CSP
+  delta_target: 0.30
+  delta_tolerance: 0.05
+  dte_target: 45
+  dte_tolerance: 7
+  min_iv_rank: 30
+  symbols:
+    - SPY
+    - QQQ
+    - IWM
+  skip_if_earnings_within_days: 7
+  skip_if_fomc_within_days: 2
+
+sizing:
+  mode: pct_bp
+  pct_bp: 0.05
+
+rolls:
+  - trigger: dte_threshold
+    dte_threshold: 21
+    target_dte: 45
+    target_delta: 0.30
+  - trigger: short_strike_tested
+    target_dte: 45
+    target_delta: 0.30
+
+exits:
+  - profit_target_pct: 0.5
+  - dte_close: 7
+
+risk:
+  max_concurrent_positions: 10
+  max_capital_per_symbol_pct: 0.25
+  initial_capital: 100000

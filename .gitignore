@@ -3,6 +3,10 @@ __pycache__/
 .env
 venv/
 .venv/
+.pytest_cache/
+.ruff_cache/
+*.html
+wheel_quickstart_report.html
 data/*.json
 data/*.csv
 *.egg-info/

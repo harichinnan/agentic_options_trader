@@ -1,0 +1,43 @@
+name: CreditSpread-Equities
+description: >
+  Directional bull put spread on liquid large-cap equities. 0.25 delta short put,
+  $5 wing, 30-45 DTE. Close at 50% profit or if DTE drops below 14.
+
+entry:
+  strategy: BullPutSpread
+  delta_target: 0.25
+  delta_tolerance: 0.05
+  dte_target: 40
+  dte_tolerance: 7
+  min_iv_rank: 35
+  wing_width: 5.0
+  symbols:
+    - AAPL
+    - MSFT
+    - GOOGL
+    - META
+    - AMZN
+  skip_if_earnings_within_days: 10
+
+sizing:
+  mode: pct_bp
+  pct_bp: 0.03
+
+rolls:
+  - trigger: short_strike_tested
+    target_dte: 40
+    target_delta: 0.25
+  - trigger: delta_breach
+    delta_threshold: 0.50
+    target_dte: 40
+    target_delta: 0.25
+
+exits:
+  - profit_target_pct: 0.5
+  - dte_close: 14
+  - stop_loss_multiplier: 2.5
+
+risk:
+  max_concurrent_positions: 15
+  max_capital_per_symbol_pct: 0.10
+  initial_capital: 75000
