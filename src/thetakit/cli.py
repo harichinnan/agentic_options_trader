@@ -206,5 +206,124 @@ def plot_cmd(
     console.print(f"[green]wrote:[/green] {path}")
 
 
+# ---- Hosted cloud-eval commands (thetakit.cloud) ----------------------------
+
+
+def _get_cloud_client():
+    """Load the cloud client or print a helpful error and exit."""
+    try:
+        from thetakit_cloud_client import CloudClient, load_credentials  # noqa: PLC0415
+    except ImportError as e:
+        err_console.print(
+            "[red]✗[/red] thetakit-cloud-client is not installed. "
+            "Install the hosted-service client from thetakit-cloud/packages/mcp-client."
+        )
+        raise typer.Exit(code=1) from e
+
+    creds = load_credentials()
+    if creds is None:
+        err_console.print(
+            "[red]✗[/red] no credentials found. Run `thetakit auth --key <key> --url <url>`."
+        )
+        raise typer.Exit(code=1)
+    return CloudClient(api_key=creds.api_key, base_url=creds.base_url)
+
+
+@app.command("auth")
+def auth_cmd(
+    key: str = typer.Option(..., "--key", "-k", help="API key from thetakit.cloud"),
+    url: str = typer.Option(
+        "http://localhost:8000", "--url", help="Base URL of the hosted API"
+    ),
+) -> None:
+    """Store credentials for thetakit.cloud locally (~/.thetakit/credentials)."""
+    try:
+        from thetakit_cloud_client import Credentials, save_credentials  # noqa: PLC0415
+    except ImportError as e:
+        err_console.print("[red]✗[/red] thetakit-cloud-client not installed.")
+        raise typer.Exit(code=1) from e
+    path = save_credentials(Credentials(api_key=key, base_url=url))
+    console.print(f"[green]✓[/green] credentials saved to {path}")
+
+
+@app.command("smoke-eval")
+def smoke_eval_cmd(
+    path: Path = typer.Argument(..., exists=True, readable=True, help="Rule YAML file"),
+    universe: str = typer.Option(..., "--universe", "-u"),
+    from_date: str = typer.Option(..., "--from"),
+    to_date: str = typer.Option(None, "--to"),
+) -> None:
+    """Submit a smoke eval (hosted)."""
+    client = _get_cloud_client()
+    syms = [s.strip().upper() for s in universe.split(",") if s.strip()]
+    end_str = to_date or date.today().isoformat()
+    yaml_text = path.read_text(encoding="utf-8")
+    result = client.run_smoke_eval(
+        rule_yaml=yaml_text,
+        universe=syms,
+        start=date.fromisoformat(from_date),
+        end=date.fromisoformat(end_str),
+    )
+    console.print(
+        f"[green]submitted[/green] smoke eval handle=[cyan]{result['handle']}[/cyan] "
+        f"status={result['status']}"
+    )
+    console.print(f"Poll with: [dim]thetakit eval-status {result['handle']}[/dim]")
+
+
+@app.command("full-eval")
+def full_eval_cmd(
+    path: Path = typer.Argument(..., exists=True, readable=True, help="Rule YAML file"),
+    universe: str = typer.Option(..., "--universe", "-u"),
+    from_date: str = typer.Option(..., "--from"),
+    to_date: str = typer.Option(None, "--to"),
+) -> None:
+    """Submit a full eval (hosted). Costs more credits, runs longer."""
+    client = _get_cloud_client()
+    syms = [s.strip().upper() for s in universe.split(",") if s.strip()]
+    end_str = to_date or date.today().isoformat()
+    yaml_text = path.read_text(encoding="utf-8")
+    result = client.run_full_eval(
+        rule_yaml=yaml_text,
+        universe=syms,
+        start=date.fromisoformat(from_date),
+        end=date.fromisoformat(end_str),
+    )
+    console.print(
+        f"[green]submitted[/green] full eval handle=[cyan]{result['handle']}[/cyan] "
+        f"status={result['status']}"
+    )
+
+
+@app.command("eval-status")
+def eval_status_cmd(
+    handle: str = typer.Argument(..., help="Eval handle from smoke-eval / full-eval"),
+) -> None:
+    """Poll the status of a hosted eval."""
+    client = _get_cloud_client()
+    result = client.get_eval(handle)
+    status = result.get("status", "unknown")
+    colour = {"complete": "green", "failed": "red", "running": "yellow", "queued": "blue"}.get(status, "white")
+    console.print(f"status: [{colour}]{status}[/{colour}]")
+    if result.get("summary_text"):
+        console.print(result["summary_text"])
+    if result.get("error_message"):
+        err_console.print(f"[red]error:[/red] {result['error_message']}")
+
+
+@app.command("eval-pull")
+def eval_pull_cmd(
+    handle: str = typer.Argument(...),
+    output: Path = typer.Option(Path("eval_result.json"), "--output", "-o"),
+) -> None:
+    """Download a hosted eval's summary to a local file."""
+    import json
+
+    client = _get_cloud_client()
+    result = client.get_eval(handle)
+    output.write_text(json.dumps(result, indent=2, default=str))
+    console.print(f"[green]wrote:[/green] {output}")
+
+
 if __name__ == "__main__":
     app()

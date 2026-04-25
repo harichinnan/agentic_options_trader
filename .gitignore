@@ -7,6 +7,9 @@ venv/
 .ruff_cache/
 *.html
 wheel_quickstart_report.html
+*.db
+thetakit_cloud.db
+data/eval_blobs/
 data/*.json
 data/*.csv
 *.egg-info/

@@ -233,3 +233,80 @@ def get_calendar_events(
 def clear_cache() -> None:
     """Test helper: clear the in-memory handle cache."""
     _CACHE.clear()
+
+
+# ---- Phase 2 hosted-eval tools ----------------------------------------------
+# These are gated on the presence of thetakit-cloud-client + credentials file.
+# If either is missing, the tool returns a clear not_configured response so the
+# MCP host can fall back to local backtests gracefully.
+
+
+def _cloud_or_none():
+    try:
+        from thetakit_cloud_client import CloudClient, load_credentials  # type: ignore[import-not-found]
+    except ImportError:
+        return None
+    creds = load_credentials()
+    if creds is None:
+        return None
+    return CloudClient(api_key=creds.api_key, base_url=creds.base_url)
+
+
+def run_smoke_eval(
+    rule_yaml: str, universe: list[str], start: str, end: str
+) -> dict[str, Any]:
+    """Submit a hosted smoke eval. Returns {'handle', 'status', 'eval_type'}."""
+    from datetime import date as _date  # noqa: PLC0415
+
+    client = _cloud_or_none()
+    if client is None:
+        return {
+            "error": "not_configured",
+            "detail": (
+                "thetakit-cloud is not configured. Run `thetakit auth --key <key>` "
+                "after provisioning an API key in the hosted service."
+            ),
+        }
+    return client.run_smoke_eval(
+        rule_yaml=rule_yaml, universe=universe,
+        start=_date.fromisoformat(start), end=_date.fromisoformat(end),
+    )
+
+
+def run_full_eval(
+    rule_yaml: str, universe: list[str], start: str, end: str
+) -> dict[str, Any]:
+    """Submit a hosted full eval."""
+    from datetime import date as _date  # noqa: PLC0415
+
+    client = _cloud_or_none()
+    if client is None:
+        return {"error": "not_configured"}
+    return client.run_full_eval(
+        rule_yaml=rule_yaml, universe=universe,
+        start=_date.fromisoformat(start), end=_date.fromisoformat(end),
+    )
+
+
+def get_eval_status(handle: str) -> dict[str, Any]:
+    client = _cloud_or_none()
+    if client is None:
+        return {"error": "not_configured"}
+    return client.get_eval(handle)
+
+
+def get_eval_results(handle: str) -> dict[str, Any]:
+    """Alias for get_eval_status — hosted evals return full results from the same endpoint."""
+    return get_eval_status(handle)
+
+
+def summarize_eval(handle: str) -> dict[str, Any]:
+    client = _cloud_or_none()
+    if client is None:
+        return {"error": "not_configured"}
+    result = client.get_eval(handle)
+    return {
+        "summary_text": result.get("summary_text", ""),
+        "stats": result.get("stats"),
+        "status": result.get("status"),
+    }

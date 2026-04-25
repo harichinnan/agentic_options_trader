@@ -70,5 +70,9 @@ pythonVersion = "3.12"
 typeCheckingMode = "strict"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "thetakit-cloud/apps/api/tests", "thetakit-cloud/apps/compute/tests"]
 python_files = ["test_*.py"]
+asyncio_mode = "auto"
+markers = [
+    "slow: marks tests as slow (run with -m slow)",
+]
